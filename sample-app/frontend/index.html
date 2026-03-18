@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Portfolio Sample App</title>
+  <style>
+    :root {
+      --bg: #f3f6fb;
+      --panel: #ffffff;
+      --ink: #0b1f33;
+      --accent: #0066ff;
+      --muted: #5d6d7d;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: radial-gradient(circle at top right, #dbe9ff, var(--bg));
+      color: var(--ink);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .card {
+      width: min(720px, 100%);
+      background: var(--panel);
+      border-radius: 16px;
+      box-shadow: 0 20px 50px rgba(11, 31, 51, 0.15);
+      padding: 28px;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: 1.8rem;
+    }
+
+    p {
+      margin: 8px 0;
+      color: var(--muted);
+    }
+
+    .row {
+      margin-top: 16px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .result {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 10px;
+      background: #f7faff;
+      border: 1px solid #dde8ff;
+      overflow-x: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.9rem;
+      white-space: pre-wrap;
+    }
+
+    @media (max-width: 600px) {
+      .card { padding: 20px; }
+      h1 { font-size: 1.45rem; }
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Personal Portfolio Sample</h1>
+    <p>This frontend calls backend APIs through ALB path routing.</p>
+    <p>Backend then connects to PostgreSQL on RDS.</p>
+
+    <div class="row">
+      <button id="healthBtn">Check Backend Health</button>
+      <button id="visitsBtn">Record Visit (RDS Write)</button>
+      <button id="configBtn">Show Backend DB Config</button>
+    </div>
+
+    <pre id="output" class="result">Click a button to call /api endpoints.</pre>
+  </main>
+
+  <script>
+    const output = document.getElementById("output");
+
+    async function callApi(path) {
+      output.textContent = `Loading ${path} ...`;
+      try {
+        const response = await fetch(path, { headers: { Accept: "application/json" } });
+        const data = await response.json();
+        output.textContent = JSON.stringify({ status: response.status, data }, null, 2);
+      } catch (error) {
+        output.textContent = `Request failed: ${error.message}`;
+      }
+    }
+
+    document.getElementById("healthBtn").addEventListener("click", () => callApi("/api/health"));
+    document.getElementById("visitsBtn").addEventListener("click", () => callApi("/api/visits"));
+    document.getElementById("configBtn").addEventListener("click", () => callApi("/api/config"));
+  </script>
+</body>
+</html>

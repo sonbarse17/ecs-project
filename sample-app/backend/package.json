@@ -1,0 +1,13 @@
+{
+  "name": "portfolio-backend",
+  "version": "1.0.0",
+  "description": "Sample backend API connected to PostgreSQL",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "pg": "^8.13.1"
+  }
+}
