@@ -1,0 +1,79 @@
+aws_region = "ap-south-1"
+name       = "personal-portfolio-prod-aps1-vpc"
+vpc_cidr   = "10.20.0.0/16"
+azs        = ["ap-south-1a", "ap-south-1b", "ap-south-1c"]
+
+enable_public_subnet = true
+public_subnet_cidrs  = ["10.20.0.0/24", "10.20.1.0/24", "10.20.2.0/24"]
+
+enable_app_subnet = true
+app_subnet_cidrs  = ["10.20.10.0/24", "10.20.11.0/24", "10.20.12.0/24"]
+
+enable_data_subnet = true
+data_subnet_cidrs  = ["10.20.20.0/24", "10.20.21.0/24", "10.20.22.0/24"]
+
+cluster_name = "personal-portfolio-prod-aps1-ecs"
+
+task_cpu              = 256
+task_memory           = 512
+log_retention_in_days = 7
+
+containers = [
+  {
+    name          = "frontend"
+    image         = "your-dockerhub-user/personal-portfolio-frontend:latest"
+    port          = 80
+    desired_count = 2
+    environment   = []
+  },
+  {
+    name          = "backend"
+    image         = "your-dockerhub-user/personal-portfolio-backend:latest"
+    port          = 80
+    desired_count = 1
+    environment   = []
+  }
+]
+
+sg_ingress_rules = [
+  { from_port = 80, to_port = 80, protocol = "tcp", cidr_blocks = ["0.0.0.0/0"] },
+  { from_port = 443, to_port = 443, protocol = "tcp", cidr_blocks = ["0.0.0.0/0"] },
+]
+
+zone_name     = "example.com"
+app_subdomain = "portfolio"
+
+alb_name = "prod-aps1-alb"
+
+target_groups = [
+  { name = "frontend", port = 80, path_pattern = "/", health_check_path = "/", priority = 1 },
+  { name = "backend", port = 80, path_pattern = "/api/*", health_check_path = "/api/health", priority = 2 },
+]
+
+default_target_name = "frontend"
+
+alb_ingress_rules = [
+  { from_port = 80, to_port = 80, protocol = "tcp", cidr_blocks = ["0.0.0.0/0"] },
+  { from_port = 443, to_port = 443, protocol = "tcp", cidr_blocks = ["0.0.0.0/0"] },
+]
+
+rds_identifier              = "personal-portfolio-prod-aps1-db"
+rds_engine_version          = "16.13"
+rds_instance_class          = "db.t3.micro"
+rds_allocated_storage       = 20
+rds_max_allocated_storage   = 100
+rds_storage_type            = "gp3"
+rds_port                    = 5432
+rds_db_name                 = "portfolio"
+rds_username                = "portfolio_admin"
+rds_password                = "ReplaceWithStrongPassword123!"
+rds_publicly_accessible     = false
+rds_multi_az                = false
+rds_backup_retention_period = 7
+rds_deletion_protection     = false
+rds_skip_final_snapshot     = true
+
+tags = {
+  Project     = "personal-portfolio"
+  Environment = "production"
+}

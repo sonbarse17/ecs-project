@@ -1,45 +1,42 @@
 # ECS Portfolio Infrastructure
 
-Terraform project to deploy a two-container application on AWS ECS Fargate with:
-- VPC (public/app/data subnets)
-- ALB (path-based routing)
-- Route53 + ACM
-- RDS PostgreSQL
+This repo deploys a simple portfolio-style app on AWS using Terraform.
 
-The sample app is:
-- `frontend` (static page)
-- `backend` (Node.js API)
-- backend connects to RDS PostgreSQL
+The app has two containers:
+- `frontend`: static UI
+- `backend`: Node.js API
 
-## Architecture
-- `/` -> frontend target group
-- `/api/*` -> backend target group
-- backend uses env vars injected by Terraform for DB connection
+The backend connects to PostgreSQL on RDS, and traffic is routed through an ALB:
+- `/` -> frontend
+- `/api/*` -> backend
 
-## Repository Structure
-- `main.tf`, `variables.tf`, `outputs.tf`: root wiring
-- `modules/`: reusable Terraform modules (`vpc`, `alb`, `ecs`, `route53`, `acm`, `rds`)
-- `sample-app/frontend`: frontend source + Dockerfile
-- `sample-app/backend`: backend source + Dockerfile
+## What's in this repo
+- `main.tf`, `variables.tf`, `outputs.tf`: root Terraform wiring
+- `modules/`: reusable modules (`vpc`, `alb`, `ecs`, `route53`, `acm`, `rds`)
+- `sample-app/frontend`: frontend source and Dockerfile
+- `sample-app/backend`: backend source and Dockerfile
 
-## Prerequisites
+## Before you start
 - Terraform `>= 1.5`
-- AWS CLI configured with valid credentials
+- AWS CLI configured with working credentials
 - Docker installed and logged into Docker Hub
 
-## Configure
-1. Edit `terraform.tfvars`:
-- networking CIDRs/AZs
-- `zone_name`, `app_subdomain`
-- RDS values (`rds_*`)
-- container image URIs (`sonbarse17/...` or your own)
+## Configure values
+Create your working tfvars file from the template:
 
-2. Keep secrets out of Git:
-- `terraform.tfvars` is ignored via `.gitignore`
+```bash
+cp terraform.tfvars.example terraform.tfvars
+```
 
-## Build and Push Images
-Use the sample app folders:
+Update `terraform.tfvars` before deployment:
+- networking (`vpc_cidr`, subnet CIDRs, AZs)
+- domain (`zone_name`, `app_subdomain`)
+- database (`rds_*` values)
+- container images (`containers[].image`)
 
+Note: `terraform.tfvars` is ignored in `.gitignore`, so secrets are not committed.
+
+## Build and push Docker images
 ```bash
 docker build -t <dockerhub-user>/personal-portfolio-frontend:latest sample-app/frontend
 docker push <dockerhub-user>/personal-portfolio-frontend:latest
@@ -48,26 +45,58 @@ docker build -t <dockerhub-user>/personal-portfolio-backend:latest sample-app/ba
 docker push <dockerhub-user>/personal-portfolio-backend:latest
 ```
 
-Update `containers[].image` values in `terraform.tfvars` with your image names.
+Then set those image names in `terraform.tfvars`.
 
-## Deploy
+## Deployment steps
+1. Initialize Terraform:
+
 ```bash
 terraform init
 terraform validate
-terraform plan
+```
+
+2. Create only the Route53 hosted zone first:
+
+```bash
+terraform apply -target=module.route53.aws_route53_zone.this -auto-approve
+```
+
+3. Copy the Route53 nameservers and update them in your domain provider.
+
+```bash
+terraform output -json
+# or
+aws route53 get-hosted-zone --id <hosted-zone-id> --query 'DelegationSet.NameServers' --output text
+```
+
+4. Wait for nameserver propagation and confirm:
+
+```bash
+dig NS <zone_name> +short
+```
+
+5. After NS points to AWS, deploy the full stack:
+
+```bash
 terraform apply -auto-approve
 ```
 
+## Common deployment issues and fixes
+- ACM validation stayed pending because the domain was still delegated to old nameservers.
+  Fix: update Hostinger nameservers to Route53 and wait for propagation.
+
+- Backend tasks crashed with `no pg_hba.conf entry ... no encryption`.
+  Fix: enable SSL for DB connection (`DB_SSL=true` in Terraform-injected backend env).
+
+- Frontend showed `Unexpected token '<'` while calling `/api/*`.
+  Fix: this happened because backend was unhealthy and ALB returned HTML. Once backend + DB were healthy, `/api` returned valid JSON.
+
 ## Verify
-- App URL: `https://<app_subdomain>.<zone_name>`
+- App: `https://<app_subdomain>.<zone_name>`
 - Backend health: `https://<app_subdomain>.<zone_name>/api/health`
 - Backend DB check: `https://<app_subdomain>.<zone_name>/api/visits`
 
-## Destroy
+## Destroy everything
 ```bash
 terraform destroy -auto-approve
 ```
-
-## Notes
-- DNS nameserver propagation can delay ACM validation.
-- If backend fails to connect to RDS due to encryption policy, ensure DB SSL is enabled in backend env (`DB_SSL=true`).
